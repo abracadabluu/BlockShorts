@@ -1,4 +1,4 @@
-# Isse repo me .github/workflows/build-apk.yml naam se rakho
+# Repo me .github/workflows/build-apk.yml naam se rakho
 name: Build BlockShorts APK
 
 on:
@@ -21,12 +21,30 @@ jobs:
         with:
           gradle-version: 8.7
 
+      # Agar repo me sirf BlockShorts.zip upload hui hai to unzip karo
+      - name: Unzip if needed
+        run: |
+          if [ -z "$(find . -name settings.gradle.kts -not -path './.git/*' -print -quit)" ]; then
+            ZIP=$(find . -name '*.zip' -not -path './.git/*' -print -quit)
+            if [ -n "$ZIP" ]; then unzip -oq "$ZIP" -d unzipped; fi
+          fi
+
+      # settings.gradle.kts kahin bhi ho (root ya subfolder), uska folder dhoondo
+      - name: Locate project root
+        id: root
+        run: |
+          S=$(find . -name settings.gradle.kts -not -path './.git/*' -print -quit)
+          if [ -z "$S" ]; then echo "settings.gradle.kts nahi mili"; ls -R | head -50; exit 1; fi
+          DIR=$(dirname "$S")
+          echo "Project dir: $DIR"
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+
       - name: Build debug APK
+        working-directory: ${{ steps.root.outputs.dir }}
         run: gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: BlockShorts-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-          
+          path: ${{ steps.root.outputs.dir }}/app/build/outputs/apk/debug/*.apk
